@@ -1,3 +1,4 @@
 # conway
 HTML-based game of life
-[page](./cgl.html)
+
+[click me!](./cgl.html)
