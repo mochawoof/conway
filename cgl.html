@@ -163,6 +163,14 @@ function reset() {
 	drawGrid();
 }
 
+function redraw() {
+	pause();
+	drawGrid();
+	for (let i=0; i < data.length; i++) {
+		fillCell(...data[i], "#000");
+	}
+}
+
 function playStep() {
 	if (!paused) {
 		setTimeout(function() {
@@ -261,11 +269,28 @@ canvas.onmousemove = function(e, isOnDown) {
 }
 
 function save() {
-	
+	let file = new Blob([JSON.stringify(data)], {
+		type: "text/plain"
+	});
+	let download = document.createElement("a");
+	download.href = URL.createObjectURL(file);
+	download.setAttribute("download", "generation" + generation);
+	download.click();
 }
 
 function load() {
-
+	let upload = document.createElement("input");
+	upload.type = "file";
+	upload.onchange = function(e) {
+		let file = e.target.files[0];
+		let reader = new FileReader();
+		reader.onload = function(v) {
+			data = JSON.parse(v.target.result);
+			redraw();
+		}
+		reader.readAsText(file);
+	}
+	upload.click();
 }
 
 reset();
