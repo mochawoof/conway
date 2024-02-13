@@ -4,18 +4,25 @@
 		font-family: sans-serif;
 		text-align: center;
 	}
-	
+
 	input[type="number"] {
-		width:70px;
+		width: 70px;
 	}
-	
+	button,input,select,p {
+		background: inherit;
+		color: inherit;
+		border-color: inherit;
+	}
 	hr {
-		width:500px;
+		width: 500px;
+	}
+	a {
+		color: #0000ff;
 	}
 </style>
 </head>
 <body>
-	<p><small>v2.2 - <a href="https://github.com/mochawoof/conway">GitHub</a></small></p>
+	<p><small>v2.3 - <a href="https://github.com/mochawoof/conway">GitHub</a></small></p>
 	<canvas width="800" height="500"></canvas>
 	<p>Generation <span id="generationLabel"></span></p>
 	<p>
@@ -51,18 +58,25 @@ let cols;
 let slice;
 
 let themes = [
-	["Default", "#fff", "#000", "#999"],
-	["Dark", "#000", "#fff", "#999"],
-	["Mono", "#fff", "#000", "#000"],
-	["Hot and Cold", "#0000dd", "#ff0000", "#000088"],
-	["Kuromi", "#000", "#ff80db", "#8f3575"]
+	//name, bg, cells, grid, page bg, page fg
+	["Default", "#fff", "#000", "#999", "#fff", "#000"],
+	["Dark", "#000", "#fff", "#999", "#000", "#fff"],
+	["Mono", "#fff", "#000", "#000", "#fff", "#000"],
+	["Hot and Cold", "#0000dd", "#ff0000", "#000088", "#640000", "#fff"],
+	["Kuromi", "#000", "#ff80db", "#8f3575", "#222", "#ff80db"],
+	["Hotdog Stand", "#ffff00", "#ff0000", "#000", "#ffff00", "#000"],
+	["Terminal", "#000", "#00ff00", "#008a00", "#000", "#00ff00"]
 ];
 let selectedTheme = themes[0];
 let themeSelect = document.querySelector("#themeSelect");
 themeSelect.onchange = function() {
 	selectedTheme = themes[themeSelect.value];
+	document.body.style.background = selectedTheme[4];
+	document.body.style.color = selectedTheme[5];
+	document.body.style.borderColor = selectedTheme[5];
 	redraw();
 }
+
 for (let i=0; i < themes.length; i++) {
 	let option = document.createElement("option");
 	option.value = i;
@@ -72,12 +86,17 @@ for (let i=0; i < themes.length; i++) {
 
 let data = [];
 let generation = 0;
-function init() {
-	data = [];
-	generation = 0;
+
+function initRows() {
 	rows = Math.floor(canvas.height / 10);
 	slice = canvas.height / rows;
 	cols = Math.floor(canvas.width / slice);
+}
+
+function init() {
+	data = [];
+	generation = 0;
+	initRows();
 }
 
 function findDataIndex(x, y, array) {
@@ -175,12 +194,12 @@ let shiftYInput = document.querySelector("#shiftYInput");
 
 canvasSizeWidthRange.onchange = function(e) {
 	canvas.width = e.target.value;
-	reset();
+	redraw();
 }
 
 canvasSizeHeightRange.onchange = function(e) {
 	canvas.height = e.target.value;
-	reset();
+	redraw();
 }
 
 function play() {
@@ -213,6 +232,7 @@ function reset() {
 
 function redraw() {
 	pause();
+	initRows();
 	drawGrid();
 	for (let i=0; i < data.length; i++) {
 		fillCell(...data[i], selectedTheme[2]);
@@ -220,12 +240,12 @@ function redraw() {
 }
 
 function playStep() {
-	if (!paused) {
-		setTimeout(function() {
+	setTimeout(function() {
+		if (!paused) {
 			stepGeneration();
 			playStep();
-		}, 50000 / speedRange.value);
-	}
+		}
+	}, 50000 / speedRange.value);
 }
 
 function stepGeneration() {
@@ -374,4 +394,5 @@ function saveImage() {
 }
 
 reset();
+themeSelect.onchange();
 </script>
