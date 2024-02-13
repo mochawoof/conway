@@ -1,0 +1,244 @@
+<head>
+<style>
+	body {
+		font-family: sans-serif;
+		text-align: center;
+	}
+</style>
+</head>
+<body>
+	<canvas width="800" height="500"></canvas>
+	<p>Generation <span id="generationLabel"></span></p>
+	<p>
+		<button id="playButton" onclick="play()">Play</button>
+		<button id="stepButton" onclick="stepGeneration()">Step</button>
+		<button id="pauseButton" onclick="pause()" disabled>Pause</button>
+		<button onclick="reset()">Reset</button>
+	</p>
+	<p>Speed: <input id="speedRange" type="range" min="50" max="800" value="200"></p>
+</body>
+<script>
+let canvas = document.querySelector("canvas");
+let ctx = canvas.getContext("2d");
+
+let rows = 50;
+let cols;
+let slice;
+
+let data = [];
+let generation = 0;
+function init() {
+	data = [];
+	generation = 0;
+	slice = canvas.height / rows;
+	cols = Math.floor(canvas.width / slice);
+}
+
+function findDataIndex(x, y, array) {
+	if (array == null) {
+		array = data;
+	}
+	for (let i=0; i < array.length; i++) {
+		if (array[i][0] == x && array[i][1] == y) {
+			return i;
+		}
+	}
+}
+
+function getNeighborsToCheck(x, y) {
+	return [
+	[x-1, y-1],
+	[x, y-1],
+	[x+1, y-1],
+	
+	[x-1, y],
+	[x+1, y],
+	
+	[x-1, y+1],
+	[x, y+1],
+	[x+1, y+1]
+	];
+}
+
+function findNeighbors(x, y) {
+	let n = [];
+	let neighborsToCheck = getNeighborsToCheck(x, y);
+	for (let i=0; i < neighborsToCheck.length; i++) {
+		n[i] = findDataIndex(...neighborsToCheck[i]);
+	}
+	return n;
+}
+
+function findNeighborCount(neighbors) {
+	let n = 0;
+	for (let i=0; i < neighbors.length; i++) {
+		if (neighbors[i] != null) {
+			n++;
+		}
+	}
+	return n;
+}
+
+function drawGrid() {
+	ctx.fillStyle = "#fff";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = "#000";
+	for (let i=0; i < rows + 1; i++) {
+		let y = slice * i;
+		if (i >= rows) {
+			y--;
+		}
+		ctx.fillRect(0, y, canvas.width, 1);
+	}
+	for (let i=0; i < cols + 1; i++) {
+		let x = slice * i;
+		if (i >= cols) {
+			x--;	
+		}
+		ctx.fillRect(x, 0, 1, canvas.height);
+	}
+}
+
+function fillCell(x, y, color) {	
+	ctx.fillStyle = color;
+	let width = slice - 1;
+	let height = slice - 1;
+	if (x >= cols - 1) {
+		width--;
+	}
+	if (y >= rows - 1) {
+		height--;
+	}
+	ctx.fillRect(slice * x + 1, slice * y + 1, width, height);
+}
+
+let generationLabel = document.querySelector("#generationLabel");
+let stepButton = document.querySelector("#stepButton");
+let playButton = document.querySelector("#playButton");
+let pauseButton = document.querySelector("#pauseButton");
+let paused = true;
+let speedRange = document.querySelector("#speedRange");
+
+function play() {
+	paused = false;
+	playButton.setAttribute("disabled", true);
+	stepButton.setAttribute("disabled", true);
+	pauseButton.removeAttribute("disabled");
+
+	playStep();
+}
+
+function pause() {
+	paused = true;
+	playButton.removeAttribute("disabled");
+	stepButton.removeAttribute("disabled");
+	pauseButton.setAttribute("disabled", true);
+}
+
+function reset() {
+	pause();
+	init();
+	generation = 0;
+	stepGeneration();
+	drawGrid();
+}
+
+function playStep() {
+	if (!paused) {
+		setTimeout(function() {
+			stepGeneration();
+			playStep();
+		}, 50000 / speedRange.value);
+	}
+}
+
+function stepGeneration() {
+	let toBirth = [];
+	let toKill = [];
+	for (let i=0; i < data.length; i++) {
+		let cell = data[i];
+		let neighbors = findNeighbors(...cell);
+		let numNeighbors = findNeighborCount(neighbors);
+		
+		//check direct neighbors
+		if (numNeighbors < 2) {
+			toKill.push(cell);
+		} else if (numNeighbors > 3) {
+			toKill.push(cell);
+		}
+		
+		//check dead neighbors
+		let neighborsToCheck = getNeighborsToCheck(...cell);
+		for (let j=0; j < neighborsToCheck.length; j++) {
+			let neighbor = neighborsToCheck[j];
+			//if cell is dead
+			if (findDataIndex(...neighbor) == null && findDataIndex(...neighbor, toBirth) == null) {
+				let neighborsOfDead = findNeighbors(...neighbor);
+				let numNeighborsOfDead = findNeighborCount(neighborsOfDead);
+				if (numNeighborsOfDead == 3) {
+					toBirth.push(neighbor);
+				}
+			}
+		}
+	}
+	
+	for (let i=0; i < toKill.length; i++) {
+		data.splice(findDataIndex(...toKill[i]), 1);
+		fillCell(...toKill[i], "#fff");
+	}
+	
+	for (let i=0; i < toBirth.length; i++) {
+		data.push(toBirth[i]);
+		fillCell(...toBirth[i], "#000");
+	}
+
+	generation++;
+	generationLabel.innerText = generation;
+}
+
+let mouseDown = false;
+let highlightedCell = [-1, -1];
+let togglingAlive = false;
+
+canvas.onmousedown = function(e) {
+	mouseDown = true;
+	canvas.onmousemove(e, true);
+}
+canvas.onmouseup = function() {
+	mouseDown = false;
+}
+canvas.onmousemove = function(e, isOnDown) {
+	if (mouseDown) {
+		let x = Math.floor(e.offsetX / slice);
+		let y = Math.floor(e.offsetY / slice);
+		let i = findDataIndex(x, y);
+
+		if (isOnDown) {
+			if (i != null) {
+				togglingAlive = false;
+			} else {
+				togglingAlive = true;
+			}
+		}
+		
+		if (x < cols && y < rows) {
+			if (highlightedCell[0] != x || highlightedCell[1] != y || isOnDown) {
+				if (i != null) {
+					if (!togglingAlive) {
+						data.splice(i, 1);
+						fillCell(x, y, "#fff");
+					}
+				} else {
+					if (togglingAlive) {
+						data.push([x, y]);
+						fillCell(x, y, "#000");
+					}
+				}
+				highlightedCell = [x, y]
+			}
+		}
+	}
+}
+
+reset();
+</script>
