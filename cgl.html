@@ -4,10 +4,18 @@
 		font-family: sans-serif;
 		text-align: center;
 	}
+	
+	input[type="number"] {
+		width:70px;
+	}
+	
+	hr {
+		width:500px;
+	}
 </style>
 </head>
 <body>
-	<p><small>v2.1 - <a href="https://github.com/mochawoof/conway">GitHub</a></small></p>
+	<p><small>v2.2 - <a href="https://github.com/mochawoof/conway">GitHub</a></small></p>
 	<canvas width="800" height="500"></canvas>
 	<p>Generation <span id="generationLabel"></span></p>
 	<p>
@@ -16,14 +24,23 @@
 		<button id="pauseButton" onclick="pause()" disabled>Pause</button>
 		<button onclick="reset()">Reset</button>
 	</p>
+	<p>
+		<button onclick="save()">Save</button>
+		<button onclick="load()">Load</button>
+		<button onclick="saveImage()">Screenshot</button>
+	</p>
+	<hr>
 	<p>Speed: <input id="speedRange" type="range" min="50" max="3000" value="200"></p>
 	<p>Canvas size X: <input id="canvasSizeWidthRange" type="range" min="100" max="2000" value="800">
 	Y: <input id="canvasSizeHeightRange" type="range" min="100" max="2000" value="500">
 	</p>
-	<p>
-		<button onclick="save()">Save</button>
-		<button onclick="load()">Load</button>
+	<p>Theme:
+	<select id="themeSelect"></select>
 	</p>
+	<hr>
+	<p>Shift <button id="shiftByButton" onclick="shiftBy()">by</button>
+	<button id="shiftToButton" onclick="shiftTo()">to</button>
+	X: <input id="shiftXInput" type="number" value="0"> Y: <input id="shiftYInput" type="number" value="0"></p>
 </body>
 <script>
 let canvas = document.querySelector("canvas");
@@ -33,11 +50,32 @@ let rows = 50;
 let cols;
 let slice;
 
+let themes = [
+	["Default", "#fff", "#000", "#999"],
+	["Dark", "#000", "#fff", "#999"],
+	["Mono", "#fff", "#000", "#000"],
+	["Hot and Cold", "#0000dd", "#ff0000", "#000088"],
+	["Kuromi", "#000", "#ff80db", "#8f3575"]
+];
+let selectedTheme = themes[0];
+let themeSelect = document.querySelector("#themeSelect");
+themeSelect.onchange = function() {
+	selectedTheme = themes[themeSelect.value];
+	redraw();
+}
+for (let i=0; i < themes.length; i++) {
+	let option = document.createElement("option");
+	option.value = i;
+	option.innerText = themes[i][0];
+	themeSelect.appendChild(option);
+}
+
 let data = [];
 let generation = 0;
 function init() {
 	data = [];
 	generation = 0;
+	rows = Math.floor(canvas.height / 10);
 	slice = canvas.height / rows;
 	cols = Math.floor(canvas.width / slice);
 }
@@ -88,9 +126,9 @@ function findNeighborCount(neighbors) {
 }
 
 function drawGrid() {
-	ctx.fillStyle = "#fff";
+	ctx.fillStyle = selectedTheme[1];
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = "#999";
+	ctx.fillStyle = selectedTheme[3];
 	for (let i=0; i < rows + 1; i++) {
 		let y = slice * i;
 		if (i >= rows) {
@@ -130,6 +168,11 @@ let speedRange = document.querySelector("#speedRange");
 let canvasSizeWidthRange = document.querySelector("#canvasSizeWidthRange");
 let canvasSizeHeightRange = document.querySelector("#canvasSizeHeightRange");
 
+let shiftByButton = document.querySelector("#shiftByButton");
+let shiftToButton = document.querySelector("#shiftToButton");
+let shiftXInput = document.querySelector("#shiftXInput");
+let shiftYInput = document.querySelector("#shiftYInput");
+
 canvasSizeWidthRange.onchange = function(e) {
 	canvas.width = e.target.value;
 	reset();
@@ -145,6 +188,8 @@ function play() {
 	playButton.setAttribute("disabled", true);
 	stepButton.setAttribute("disabled", true);
 	pauseButton.removeAttribute("disabled");
+	shiftByButton.setAttribute("disabled", true);
+	shiftToButton.setAttribute("disabled", true);
 
 	playStep();
 }
@@ -154,6 +199,8 @@ function pause() {
 	playButton.removeAttribute("disabled");
 	stepButton.removeAttribute("disabled");
 	pauseButton.setAttribute("disabled", true);
+	shiftByButton.removeAttribute("disabled");
+	shiftToButton.removeAttribute("disabled");
 }
 
 function reset() {
@@ -168,7 +215,7 @@ function redraw() {
 	pause();
 	drawGrid();
 	for (let i=0; i < data.length; i++) {
-		fillCell(...data[i], "#000");
+		fillCell(...data[i], selectedTheme[2]);
 	}
 }
 
@@ -213,12 +260,12 @@ function stepGeneration() {
 	
 	for (let i=0; i < toKill.length; i++) {
 		data.splice(findDataIndex(...toKill[i]), 1);
-		fillCell(...toKill[i], "#fff");
+		fillCell(...toKill[i], selectedTheme[1]);
 	}
 	
 	for (let i=0; i < toBirth.length; i++) {
 		data.push(toBirth[i]);
-		fillCell(...toBirth[i], "#000");
+		fillCell(...toBirth[i], selectedTheme[2]);
 	}
 
 	generation++;
@@ -255,12 +302,12 @@ canvas.onmousemove = function(e, isOnDown) {
 				if (i != null) {
 					if (!togglingAlive) {
 						data.splice(i, 1);
-						fillCell(x, y, "#fff");
+						fillCell(x, y, selectedTheme[1]);
 					}
 				} else {
 					if (togglingAlive) {
 						data.push([x, y]);
-						fillCell(x, y, "#000");
+						fillCell(x, y, selectedTheme[2]);
 					}
 				}
 				highlightedCell = [x, y]
@@ -292,6 +339,38 @@ function load() {
 		reader.readAsText(file);
 	}
 	upload.click();
+}
+
+function shiftBy(x, y) {
+	if (x == null || y == null) {
+		x = parseInt(shiftXInput.value);
+		y = parseInt(shiftYInput.value);
+	}
+	for (let i=0; i < data.length; i++) {
+		data[i][0] += x;
+		data[i][1] += y;
+	}
+	redraw();
+}
+
+function shiftTo() {
+	//find top left cell
+	let topLeft = [-1, -1];
+	for (let i=0; i < data.length; i++) {
+		if (data[i][0] < topLeft[0] && data[i][1] < topLeft[1] || topLeft[0] < 0) {
+			topLeft = data[i];
+		}
+	}
+	//find distance between top left cell and target position
+	let moveBy = [parseInt(shiftXInput.value) - topLeft[0], parseInt(shiftYInput.value) - topLeft[1]];
+	shiftBy(...moveBy);
+}
+
+function saveImage() {
+	let download = document.createElement("a");
+	download.href = canvas.toDataURL();
+	download.setAttribute("download", "screenshot" + generation);
+	download.click();
 }
 
 reset();
